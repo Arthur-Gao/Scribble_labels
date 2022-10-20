@@ -1,14 +1,13 @@
-from nuscenes import NuScenes
-from nuscenes.utils.geometry_utils import transform_matrix
-from pyquaternion import Quaternion
-from functools import reduce
-import numpy as np
-from nuscenes.utils.data_classes import LidarPointCloud
 import os
-from nuscenes.utils.data_io import load_bin_file
+from functools import reduce
 
-from nuscenes.utils.geometry_utils import points_in_box
-from nuscenes.utils.data_classes import Box
+import numpy as np
+from nuscenes import NuScenes
+from nuscenes.utils.data_classes import Box, LidarPointCloud
+from nuscenes.utils.data_io import load_bin_file
+from nuscenes.utils.geometry_utils import points_in_box, transform_matrix
+from pyquaternion import Quaternion
+
 
 def anno_to_box(anno):
     return Box(anno['translation'], anno['size'], Quaternion(anno['rotation'], name=anno['category_name'], token=anno['token']))
@@ -135,7 +134,7 @@ def annotate_dynamic_object(lidar_list, box_list, scribble_width=0.1):
     return scribble_mask
 
 def main():
-    nusc = NuScenes(version='v1.0-mini', dataroot='/media/ozan/hdd_backup/dataset/nuscenes/', verbose=True)
+    nusc = NuScenes(version='v1.0-mini', dataroot='/Users/chenguang.gao/Desktop/v1.0-mini', verbose=True)
     offset = 500
     num_instances = 10
     multi_lidar = []

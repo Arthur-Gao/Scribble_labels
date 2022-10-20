@@ -1,13 +1,14 @@
-import vispy
-from vispy.scene import visuals, SceneCanvas
 import os
-import numpy as np
-from pykitti import odometry
 import pickle
-import yaml
-from tqdm import tqdm
 
-BASE_DIR = '/media/ozan/hdd_backup/dataset/semantickitti'
+import numpy as np
+import vispy
+import yaml
+from pykitti import odometry
+from tqdm import tqdm
+from vispy.scene import SceneCanvas, visuals
+
+BASE_DIR = '/Users/chenguang.gao/Desktop/dataset'
 SEQ =  '00'
 
 class SemanticKITTI(odometry):
@@ -32,22 +33,22 @@ class SemanticKITTI(odometry):
                print("Wrong key ", key)
        return lut[label]
 
-   def get_semantic_label(self, idx, learning_map=None):
+   def get_semantic_label(self, idx, learning_map=None): # 得到每一个点的label
        filename = self.velo_files[idx].replace('velodyne', 'labels').replace('.bin', '.label')
        label = np.fromfile(filename, dtype=np.int32)
        label = label.reshape((-1)) & 0xFFFF
        return self.map_label(label, learning_map) if learning_map is not None else label
 
    def get_velo_pose(self, idx):
-       pose_ = np.matmul(self.poses[idx], self.calib.T_cam0_velo)
+       pose_ = np.matmul(self.poses[idx], self.calib.T_cam0_velo) # 从velo到cam0
        Tr_inv = np.linalg.inv(self.calib.T_cam0_velo)
        return np.matmul(Tr_inv, pose_)
 
-   def get_aligned_velo(self, idx, align_idx=0):
+   def get_aligned_velo(self, idx, align_idx=0): # 得到对齐的velo points
        velo = self.get_velo(idx)
-       velo[:,3] = 1
-       pose = self.get_velo_pose(idx)
-       align_pose = self.poses[align_idx]
+       velo[:,3] = 1 # 反射率都设为1
+       pose = self.get_velo_pose(idx) # 得到第idx帧velo的pose
+       align_pose = self.poses[align_idx] # 默认为第0帧的基准位置
        diff_pose = np.matmul(np.linalg.inv(align_pose), pose)
        return np.matmul(diff_pose, velo.T).T
 
@@ -88,13 +89,13 @@ def main():
    color_map = np.zeros((num_classes, 3))
    for i in range(num_classes):
        color_idx = config['learning_map_inv'][i]
-       color_map[i,:] = np.array(config['color_map'][color_idx][::-1])
+       color_map[i,:] = np.array(config['color_map'][color_idx][::-1]) # transfer color bgr to rgb
 
    # Load data
    all_xyz = []
    all_color = []
 
-   for i in tqdm(range(50,51)):
+   for i in tqdm(range(0,1)):
        xyz = ds.get_aligned_velo(i)[:,:3]
        label = ds.get_semantic_label(i, config['learning_map'])
        color = color_map[label.astype(np.int32)]/255
