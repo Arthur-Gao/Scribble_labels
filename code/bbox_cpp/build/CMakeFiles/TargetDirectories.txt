@@ -1,0 +1,3 @@
+/home/chenguang/Desktop/SP/pc/build/CMakeFiles/test.dir
+/home/chenguang/Desktop/SP/pc/build/CMakeFiles/edit_cache.dir
+/home/chenguang/Desktop/SP/pc/build/CMakeFiles/rebuild_cache.dir
