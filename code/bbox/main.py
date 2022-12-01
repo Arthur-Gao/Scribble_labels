@@ -19,8 +19,8 @@ def center_velo(velo):
 
 def draw(pcd):
     o3d.visualization.draw_geometries([pcd])
-
-def draw_box(pcd):
+    
+def get_box_corners(pcd):
     pc = np.array(pcd.points)
     max_x = pc[:,0].max()
     min_x = pc[:,0].min()
@@ -38,6 +38,9 @@ def draw_box(pcd):
         [min_x, max_y, max_z],
         [max_x, max_y, max_z]
     ]
+    return corners
+
+def draw_box(pcd, corners):
     line_set = o3d.geometry.LineSet(
         points=o3d.utility.Vector3dVector(corners),
         lines=LINES
@@ -70,7 +73,7 @@ if __name__ == '__main__':
     ds = AlignedKITTI('data', '04')
     velo = ds.concat_velo_based_on_label(sem_label=10,
                                          inst_label=8,
-                                         idx=30,
+                                         idx=0,
                                          search_len=30)
     centered_xyz = center_velo(velo[:,:3])
 
@@ -88,9 +91,9 @@ if __name__ == '__main__':
     print(np.rad2deg(theta))
     pcd = rotate(pcd, -np.rad2deg(theta))
     # draw(pcd)
-    draw_box(pcd)
-
-
+    corners = get_box_corners(pcd)
+    draw_box(pcd, corners)
+    
     # pc = np.array(pcd.points)
     # plt.scatter(pc[:,0], pc[:,1])
     # left = pc[:,0].min()
@@ -98,14 +101,9 @@ if __name__ == '__main__':
     # width = pc[:,0].max() - left
     # height = pc[:,1].max() - bottom
     
-
-
     # rect=mpatches.Rectangle((left, bottom), width, height, linewidth=1, edgecolor='r', facecolor='none')
     # plt.gca().add_patch(rect)
     # plt.show()
-
-
-
 
     # angle, pcd_2 = iterative_box(pcd)
     # print(np.rad2deg(angle))
@@ -114,7 +112,6 @@ if __name__ == '__main__':
     # pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
     # normals = np.array(pcd.normals)[z_mask]
     # angles, filtered_normals = normal_to_unit_quadrant(normals[:,:2])
-
 
     # draw(pcd_2)
     # densest = dense_finder(angles, np.deg2rad(10))

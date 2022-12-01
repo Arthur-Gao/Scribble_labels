@@ -52,7 +52,11 @@ class AlignedKITTI(odometry):
         ):
         first_idx = max(0, idx-search_len)
         last_idx = min(len(self.velo_files), idx+search_len)
-        search_idx = list(range(first_idx, last_idx))
+        if last_idx != len(self.velo_files):
+            search_idx = list(range(first_idx, last_idx + 1))
+        else:
+            search_idx = list(range(first_idx, last_idx))
+        print(f'{len(search_idx)} search frames with indices: {search_idx}.')
 
         velo = self.get_aligned_velo(idx, idx)
         sem, inst = self.get_label(idx)
@@ -93,7 +97,10 @@ class AlignedKITTI(odometry):
                 concat_frames.append(i)
                 current_velo = np.concatenate((current_velo, inst_velo))
         
-        print(f'Search range set between frames {first_idx} and {last_idx}.')
+        if last_idx != len(self.velo_files):
+            print(f'Search range set between frames {first_idx} and {last_idx}.')
+        else:
+            print(f'Search range set between frames {first_idx} and {last_idx - 1}.')
         print(f'{len(concat_frames)} concatenated frames with indices: {concat_frames}.')
         print(f'Initial point count {initial_point_count}.')
         print(f'Concatenated point count {current_velo.shape[0]}.')
