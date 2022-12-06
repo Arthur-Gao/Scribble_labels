@@ -9,9 +9,10 @@ from tqdm import tqdm
 
 from dataset import AlignedKITTI
 from rectangle_fitting import rectangle_fitting
+from label import filter_z, distance_mask
 
 LINES = [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]]
-COLORS = [[1, 0, 0] for i in range(len(LINES))]
+COLORS = [[0, 1, 0] for i in range(len(LINES))]
 LINES = o3d.utility.Vector2iVector(LINES)
 
 def center_velo(velo):
@@ -40,12 +41,20 @@ def get_box_corners(pcd):
     ]
     return corners
 
-def draw_box(pcd, corners):
+def draw_box(pcd, corners, label_mask):
     line_set = o3d.geometry.LineSet(
         points=o3d.utility.Vector3dVector(corners),
         lines=LINES
     )
     line_set.colors = o3d.utility.Vector3dVector(COLORS)
+    
+    pcd.paint_uniform_color([0, 0, 0])
+    pc_color = np.array(pcd.colors)
+    label_color = np.array([1, 0, 0])
+    for i in label_mask:
+        pc_color[i] = label_color
+    pcd.colors = o3d.utility.Vector3dVector(pc_color)
+    
     o3d.visualization.draw_geometries([pcd, line_set])
 
 def rotate(pcd, angle):
@@ -74,7 +83,7 @@ if __name__ == '__main__':
     velo = ds.concat_velo_based_on_label(sem_label=10,
                                          inst_label=8,
                                          idx=0,
-                                         search_len=30)
+                                         search_len=1000)
     centered_xyz = center_velo(velo[:,:3])
 
     pcd = o3d.geometry.PointCloud()
@@ -91,8 +100,17 @@ if __name__ == '__main__':
     print(np.rad2deg(theta))
     pcd = rotate(pcd, -np.rad2deg(theta))
     # draw(pcd)
+    
     corners = get_box_corners(pcd)
-    draw_box(pcd, corners)
+    pc = np.array(pcd.points)
+    
+    ratio_min_z, ratio_max_z = 0.2, 1.0
+    new_corners, new_pc, new_pc_mask = filter_z(corners, pc, ratio_min_z, ratio_max_z)
+    # print(new_pc_mask)
+    label_mask = distance_mask(new_corners, new_pc, new_pc_mask, distance_scope=0.05)
+    # print(label_mask)
+    
+    draw_box(pcd, corners, label_mask)
     
     # pc = np.array(pcd.points)
     # plt.scatter(pc[:,0], pc[:,1])
