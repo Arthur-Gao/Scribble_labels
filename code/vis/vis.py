@@ -65,29 +65,36 @@ class SemanticKITTI(odometry):
 
 
 class Visualizer():
-   def __init__(self):
-       self.canvas = SceneCanvas(keys='interactive', show=True, bgcolor='white')
-       self.canvas.events.key_press.connect(self.key_press)
-       self.canvas.events.draw.connect(self.draw)
-       self.grid = self.canvas.central_widget.add_grid()
-       self.view = vispy.scene.widgets.ViewBox(parent=self.canvas.scene) # border_color='white',
-       self.grid.add_widget(self.view, 0, 0)
+    def __init__(self):
+        self.canvas = SceneCanvas(keys='interactive', show=True, bgcolor='white')
+        self.canvas.events.key_press.connect(self.key_press)
+        self.canvas.events.draw.connect(self.draw)
+        self.grid = self.canvas.central_widget.add_grid()
+        self.view = vispy.scene.widgets.ViewBox(parent=self.canvas.scene) # border_color='white',
+        self.grid.add_widget(self.view, 0, 0)
 
-       # Point Cloud Visualizer
-       self.sem_vis = visuals.Markers()
-       self.sem_vis.antialias = 0
-       self.view.camera = vispy.scene.cameras.TurntableCamera(up='z', azimuth=90)
-       self.view.add(self.sem_vis)
-       visuals.XYZAxis(parent=self.view.scene)
+        # Point Cloud Visualizer
+        self.sem_vis = visuals.Markers()
+        self.sem_vis.antialias = 0
+        self.view.camera = vispy.scene.cameras.TurntableCamera(up='z', azimuth=90)
+        self.view.add(self.sem_vis)
+        visuals.XYZAxis(parent=self.view.scene)
 
-   def update(self, points, colors):
-       self.sem_vis.set_data(points, face_color=colors, edge_color=colors, size=3)
+    def update(self, points, colors):
+        self.sem_vis.set_data(points, face_color=colors, edge_color=colors, size=3)
 
-   def draw(self, event):
-       if self.canvas.events.key_press.blocked():
-           self.canvas.events.key_press.unblock()
+    def draw(self, event):
+        if self.canvas.events.key_press.blocked():
+            self.canvas.events.key_press.unblock()
 
-   def key_press(self, event):
-       self.canvas.events.key_press.block()
-       if event.key == 'Q' or event.key == 'Escape':
-           self.destroy()
+    def key_press(self, event):
+        self.canvas.events.key_press.block()
+        if event.key == 'Q' or event.key == 'Escape':
+            self.destroy()
+
+    def destroy(self):
+        self.canvas.close()
+        vispy.app.quit()
+    
+    def run(self):
+        vispy.app.run()

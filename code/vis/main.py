@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser("./main.py")
 parser.add_argument(
     '--type', '-t',
     type=int,
-    default=70,
+    default=40,
     required=False,
     help='40, 70, 81 -> "road", "vege", "sign" Defaults to %(default)s',
 )
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     all_sem_label = []
     all_color = []
 
-    for i in tqdm(range(0,100)):
+    for i in tqdm(range(0,1)):
         xyz = ds.get_aligned_velo(i)[:,:3]
         color_label, sem_label = ds.get_semantic_label_1(i, config['learning_map'])
         color = color_map[color_label.astype(np.int32)]/255
@@ -70,4 +70,4 @@ if __name__ == '__main__':
     
     visualizer = Visualizer()
     visualizer.update(all_xyz, all_color)
-    vispy.app.run()
+    visualizer.run()
