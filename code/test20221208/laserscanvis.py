@@ -193,6 +193,8 @@ class LaserScanVis:
 
   def get_cluster(self, min_points=10):
     points = self.scan.points
+    # print(points.shape)
+    # print(len(self.scan.sem_label))
     mask = np.ones(len(self.scan.sem_label), np.bool8)
 
     pcd = o3d.geometry.PointCloud()
@@ -211,7 +213,11 @@ class LaserScanVis:
         continue
       p = o3d.geometry.PointCloud()
       p.points = o3d.utility.Vector3dVector(points[labels == l])
+      # print(len(self.scan.filter_index))
+      # print(self.scan.filter_index)
       indexes = np.array(self.scan.filter_index[labels == l])
+      # print(indexes)
+      # print(indexes.shape)
 
       bbox = o3d.geometry.OrientedBoundingBox().create_from_points(p.points)
 
