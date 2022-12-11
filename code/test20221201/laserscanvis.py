@@ -9,11 +9,10 @@ from matplotlib import pyplot as plt
 from laserscan import LaserScan, SemLaserScan
 
 import geopandas as gpd
-from shapely.geometry import Point, MultiPoint
 import time
 from polylidar import MatrixDouble, Polylidar3D
 from polylidar.polylidarutil import (generate_test_points, plot_triangles, get_estimated_lmax,
-                                     plot_triangle_meshes, get_triangles_from_list, get_colored_planar_segments, plot_polygons, convert_to_shapely_polygons)
+                                     plot_triangle_meshes, get_triangles_from_list, get_colored_planar_segments, plot_polygons,convert_to_shapely_polygons)
 
 from polylidar.polylidarutil import (plot_polygons_3d, generate_3d_plane, set_axes_equal, plot_planes_3d,
                                      scale_points, rotation_matrix, apply_rotation)
@@ -21,14 +20,14 @@ import matplotlib.pyplot as plt
 from centerline.geometry import Centerline
 
 import open3d as o3d
-import pandas as pd
-
+# from sklearn.cluster import KMeans
+# from sklearn.cluster import DBSCAN
 
 class LaserScanVis:
   """Class that creates and handles a visualizer for a pointcloud"""
 
   def __init__(self, scan, scan_names, label_names, offset=0,
-               semantics=True, instances=False, distance=0.6, save_indices=False):
+               semantics=True, instances=False):
     self.scan = scan
     self.scan_names = scan_names
     self.label_names = label_names
@@ -36,9 +35,6 @@ class LaserScanVis:
     self.total = len(self.scan_names)
     self.semantics = semantics
     self.instances = instances
-    self.padding = distance
-    self.save_indices = save_indices
-
     # sanity check
     if not self.semantics and self.instances:
       print("Instances are only allowed in when semantics=True")
@@ -150,97 +146,66 @@ class LaserScanVis:
     polylidar_kwargs = dict(alpha=0.0, lmax=6, min_triangles=0, z_thresh=5, norm_thresh_min=0.1)
     polylidar = Polylidar3D(**polylidar_kwargs)
 
-    _, _, polygons = polylidar.extract_planes_and_polygons(points_mat)
+    t1 = time.time()
+    mesh, planes, polygons = polylidar.extract_planes_and_polygons(points_mat)
     for poly in polygons:
       poly.holes = []
     sp = convert_to_shapely_polygons(polygons, points, return_first=True, mp=True)
-    centre_geom = self.get_centre(sp)
-    gdf = gpd.GeoSeries(centre_geom.geoms)
+    geom = self.get_centre(sp)
+    gdf = gpd.GeoSeries(geom.geoms)
+    gdf.plot()
 
-    centre_poly = gdf.buffer(self.padding).unary_union
+    t2 = time.time()
+    print("Took {:.2f} milliseconds".format((t2 - t1) * 1000))
+    print("Should see two planes extracted, please rotate.")
 
-    geo_points = gpd.GeoSeries(MultiPoint(points)).explode(index_parts=True)
-    mask = [point.covered_by(centre_poly) for point in geo_points]
-
-    # centre_points = geo_points[mask]
-    inv_mask = ~np.array(mask)
-    self.scan.sem_label[inv_mask] = 99
-
-    if self.save_indices:
-      indexes = np.array(self.scan.filter_index[mask])
-      pd.DataFrame(indexes).to_csv("central_points_{}.csv".format(self.offset), index=False)
-      # centre_points = gpd.GeoSeries(centre_points, name="points")
-      # x = centre_points.x
-      # y = centre_points.y
-      # z = centre_points.z
-      # cpd = gpd.GeoDataFrame({'x': x, 'y': y, 'z': z}, geometry=centre_points)
-      # cpd.to_csv("central_points_{}.csv".format(self.offset), index=False)
-
-    # if not self.save_indices:
-    #   fig, ax = plt.subplots(nrows=1, ncols=1,
-    #                         subplot_kw=dict(projection='3d'))
-
-    #   plot_polygons_3d(points, polygons, ax)
-    #   ax.scatter(*scale_points(points), c='k', s=0.1)
-    #   set_axes_equal(ax)
-    #   ax.view_init(elev=15., azim=-35)
-    #   plt.show()
+    triangles = np.asarray(mesh.triangles)
+    fig, ax = plt.subplots(nrows=1, ncols=1,
+                          subplot_kw=dict(projection='3d'))
+    # plot all triangles
+    # plot_planes_3d(points, triangles, planes, ax)
+    plot_polygons_3d(points, polygons, ax)
+    # plot points
+    ax.scatter(*scale_points(points), c='k', s=0.1)
+    set_axes_equal(ax)
+    ax.view_init(elev=15., azim=-35)
+    plt.show()
 
   def get_centre(self, polygon):
     attributes = {"id": 1, "name": "polygon", "valid": True}
     centerline = Centerline(polygon, **attributes)
     return centerline
 
-  def get_cluster(self, min_points=10):
+  def get_cluster(self, min_points=10):    
     points = self.scan.points
-    mask = np.ones(len(self.scan.sem_label), np.bool8)
-
+    # kmeans = KMeans(n_clusters=1).fit(points)
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
     labels = np.array(pcd.cluster_dbscan(eps=1, min_points=min_points))
     max_label = labels.max()
-    colors = plt.get_cmap("tab20")(labels / (max_label
-                                             if max_label > 0 else 1))
+    colors = plt.get_cmap("tab20")(labels / (max_label 
+    if max_label > 0 else 1))
     colors[labels < 0] = 0
     pcd.colors = o3d.utility.Vector3dVector(colors[:, :3])
 
     bboxes = []
-    selected_indices = []
+
     for l in np.unique(labels):
       if l == -1:
         continue
       p = o3d.geometry.PointCloud()
-      p.points = o3d.utility.Vector3dVector(points[labels == l])
-      indexes = np.array(self.scan.filter_index[labels == l])
-
+      p.points = o3d.utility.Vector3dVector(points[labels==l])
       bbox = o3d.geometry.OrientedBoundingBox().create_from_points(p.points)
-
-      min_indice = np.argmin(bbox.extent)
-      shrink_extent = bbox.extent.copy()
-      shrink_extent[min_indice] = min(self.padding, min(bbox.extent))
-
-      shrink_bbox = o3d.geometry.OrientedBoundingBox(bbox.center, bbox.R, shrink_extent)
-      within_index = shrink_bbox.get_point_indices_within_bounding_box(pcd.points)
-
-      selected_indices.extend(within_index)
-      bboxes.extend([bbox, shrink_bbox])
-
-    mask[selected_indices] = 0
-    self.scan.sem_label[mask] = 99
-    if self.save_indices:
-      indices_original_points = self.scan.filter_index[~mask]
-      pd.DataFrame(indices_original_points).to_csv("PCA_points{}.csv".format(self.offset), index=False)
-
-    # visualize the plate
-    if not self.save_indices:
-      vis = o3d.visualization.Visualizer()
-      vis.create_window()
-      vis.add_geometry(pcd)
-      for bb in bboxes:
-        vis.add_geometry(bb)
-      vis.get_render_option().background_color = np.asarray([100, 0, 0])
-      vis.run()
-      vis.destroy_window()
+      bboxes.append(bbox)
+    
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+    vis.add_geometry(pcd)
+    for bb in bboxes:
+      vis.add_geometry(bb)
+    vis.get_render_option().background_color = np.asarray([0, 0, 0])
+    vis.run()
+    vis.destroy_window()
 
   def update_scan(self):
     # first open data
@@ -252,77 +217,72 @@ class LaserScanVis:
       if self.scan.label_filter[0] == 40:
         self.get_polygon()
       elif self.scan.label_filter[0] in [70, 81]:
-        min_points = 5 if self.scan.label_filter[0] == 81 else 10
+        min_points = 3 if self.scan.label_filter[0] == 81 else 10
         self.get_cluster(min_points)
-
+      
       self.scan.colorize()
 
     else:
       self.scan.open_scan(self.scan_names[self.offset])
 
-    if self.save_indices:
-      self.offset += 1
-      self.update_scan()
+    # then change names
+    title = "scan " + str(self.offset)
+    self.canvas.title = title
+    self.img_canvas.title = title
 
-    if not self.save_indices:
-      # then change names
-      title = "scan " + str(self.offset)
-      self.canvas.title = title
-      self.img_canvas.title = title
+    # then do all the point cloud stuff
 
-      # then do all the point cloud stuff
+    # plot scan
+    power = 16
+    # print()
+    range_data = np.copy(self.scan.unproj_range)
+    # print(range_data.max(), range_data.min())
+    range_data = range_data**(1 / power)
+    # print(range_data.max(), range_data.min())
+    viridis_range = ((range_data - range_data.min()) /
+                     (range_data.max() - range_data.min()) *
+                     255).astype(np.uint8)
+    viridis_map = self.get_mpl_colormap("viridis")
+    viridis_colors = viridis_map[viridis_range]
+    self.scan_vis.set_data(self.scan.points,
+                           face_color=viridis_colors[..., ::-1],
+                           edge_color=viridis_colors[..., ::-1],
+                           size=1)
 
-      # plot scan
-      power = 16
-      # print()
-      range_data = np.copy(self.scan.unproj_range)
-      # print(range_data.max(), range_data.min())
-      range_data = range_data**(1 / power)
-      # print(range_data.max(), range_data.min())
-      viridis_range = ((range_data - range_data.min()) /
-                       (range_data.max() - range_data.min()) *
-                       255).astype(np.uint8)
-      viridis_map = self.get_mpl_colormap("viridis")
-      viridis_colors = viridis_map[viridis_range]
-      self.scan_vis.set_data(self.scan.points,
-                             face_color=viridis_colors[..., ::-1],
-                             edge_color=viridis_colors[..., ::-1],
+    # plot semantics
+    if self.semantics:
+      self.sem_vis.set_data(self.scan.points,
+                            face_color=self.scan.sem_label_color[..., ::-1],
+                            edge_color=self.scan.sem_label_color[..., ::-1],
+                            size=1)
+
+    # plot instances
+    if self.instances:
+      self.inst_vis.set_data(self.scan.points,
+                             face_color=self.scan.inst_label_color[..., ::-1],
+                             edge_color=self.scan.inst_label_color[..., ::-1],
                              size=1)
 
-      # plot semantics
-      if self.semantics:
-        self.sem_vis.set_data(self.scan.points,
-                              face_color=self.scan.sem_label_color[..., ::-1],
-                              edge_color=self.scan.sem_label_color[..., ::-1],
-                              size=1)
+    # now do all the range image stuff
+    # plot range image
+    data = np.copy(self.scan.proj_range)
+    # print(data[data > 0].max(), data[data > 0].min())
+    data[data > 0] = data[data > 0]**(1 / power)
+    data[data < 0] = data[data > 0].min()
+    # print(data.max(), data.min())
+    data = (data - data[data > 0].min()) / \
+        (data.max() - data[data > 0].min())
+    # print(data.max(), data.min())
+    self.img_vis.set_data(data)
+    self.img_vis.update()
 
-      # plot instances
-      if self.instances:
-        self.inst_vis.set_data(self.scan.points,
-                               face_color=self.scan.inst_label_color[..., ::-1],
-                               edge_color=self.scan.inst_label_color[..., ::-1],
-                               size=1)
+    if self.semantics:
+      self.sem_img_vis.set_data(self.scan.proj_sem_color[..., ::-1])
+      self.sem_img_vis.update()
 
-      # now do all the range image stuff
-      # plot range image
-      data = np.copy(self.scan.proj_range)
-      # print(data[data > 0].max(), data[data > 0].min())
-      data[data > 0] = data[data > 0]**(1 / power)
-      data[data < 0] = data[data > 0].min()
-      # print(data.max(), data.min())
-      data = (data - data[data > 0].min()) / \
-          (data.max() - data[data > 0].min())
-      # print(data.max(), data.min())
-      self.img_vis.set_data(data)
-      self.img_vis.update()
-
-      if self.semantics:
-        self.sem_img_vis.set_data(self.scan.proj_sem_color[..., ::-1])
-        self.sem_img_vis.update()
-
-      if self.instances:
-        self.inst_img_vis.set_data(self.scan.proj_inst_color[..., ::-1])
-        self.inst_img_vis.update()
+    if self.instances:
+      self.inst_img_vis.set_data(self.scan.proj_inst_color[..., ::-1])
+      self.inst_img_vis.update()
 
   # interface
   def key_press(self, event):
@@ -331,8 +291,7 @@ class LaserScanVis:
     if event.key == 'N':
       self.offset += 1
       if self.offset >= self.total:
-        print("finish")
-        self.destroy()
+        self.offset = 0
       self.update_scan()
     elif event.key == 'B':
       self.offset -= 1
@@ -353,7 +312,6 @@ class LaserScanVis:
     self.canvas.close()
     self.img_canvas.close()
     vispy.app.quit()
-    exit()
 
   def run(self):
     vispy.app.run()

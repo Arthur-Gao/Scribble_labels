@@ -55,7 +55,7 @@ if __name__ == '__main__':
       help='Visualize instances too. Defaults to %(default)s',
   )
   parser.add_argument(
-      '--offset', '-o',
+      '--offset',
       type=int,
       default=0,
       required=False,
@@ -72,25 +72,11 @@ if __name__ == '__main__':
       'Defaults to %(default)s',
   )
   parser.add_argument(
-      '--type', '-t',
+      '--type','-t',
       type=int,
       default=70,
       required=False,
       help='40, 70, 81 -> "road", "vege", "sign" Defaults to %(default)s',
-  )
-  parser.add_argument(
-      '--save_indices', '-sc',
-      dest='save_indices',
-      default=False,
-      action='store_true',
-      help='whether to save central points. Defaults to %(default)s',
-  )
-  parser.add_argument(
-      '--distance', '-ds',
-      dest='distance',
-      default=0.2,
-      type=float,
-      help='Width of road. Defaults to %(default)s',
   )
   FLAGS, unparsed = parser.parse_known_args()
 
@@ -175,7 +161,7 @@ if __name__ == '__main__':
                      scan_names=scan_names,
                      label_names=label_names,
                      offset=FLAGS.offset,
-                     semantics=semantics, instances=instances and semantics, save_indices=FLAGS.save_indices, distance=FLAGS.distance)
+                     semantics=semantics, instances=instances and semantics)
 
   # print instructions
   print("To navigate:")

@@ -47,8 +47,3 @@ def distance_mask(corners, pc, mask, distance_scope = 0.05):
     label_mask = np.copy(mask)
     label_mask = label_mask[distance_mask]
     return label_mask
-    
-    
-    
-    
-    

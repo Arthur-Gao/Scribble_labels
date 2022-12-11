@@ -262,7 +262,6 @@ class SemLaserScan(LaserScan):
   def filter(self):
     if self.label_filter is not None:
       mask = np.isin(self.sem_label, self.label_filter)
-      self.filter_index = np.array(list(range(len(self.sem_label))))[mask]
       self.sem_label = self.sem_label[mask]
       self.inst_label = self.inst_label[mask]
       self.points = self.points[mask]
