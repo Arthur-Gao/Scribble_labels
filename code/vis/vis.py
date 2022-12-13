@@ -4,64 +4,81 @@ from pykitti import odometry
 from vispy.scene import SceneCanvas, visuals
 
 class SemanticKITTI(odometry):
-   @staticmethod
-   def map_label(label, map_dict):
-       maxkey = 0
-       for key, data in map_dict.items():
-           if isinstance(data, list):
-               nel = len(data)
-           else:
-               nel = 1
-           if key > maxkey:
-               maxkey = key
-       if nel > 1:
-           lut = np.zeros((maxkey + 100, nel), dtype=np.int32)
-       else:
-           lut = np.zeros((maxkey + 100), dtype=np.int32)
-       for key, data in map_dict.items():
-           try:
-               lut[key] = data
-           except IndexError:
-               print("Wrong key ", key)
-       return lut[label]
+    @staticmethod
+    def map_label(label, map_dict):
+        maxkey = 0
+        for key, data in map_dict.items():
+            if isinstance(data, list):
+                nel = len(data)
+            else:
+                nel = 1
+            if key > maxkey:
+                maxkey = key
+        if nel > 1:
+            lut = np.zeros((maxkey + 100, nel), dtype=np.int32)
+        else:
+            lut = np.zeros((maxkey + 100), dtype=np.int32)
+        for key, data in map_dict.items():
+            try:
+                lut[key] = data
+            except IndexError:
+                print("Wrong key ", key)
+        return lut[label]
 
-   def get_semantic_label_1(self, idx, learning_map=None): # 得到每一个点的label
-       filename = self.velo_files[idx].replace('velodyne', 'labels').replace('.bin', '.label')
-       label = np.fromfile(filename, dtype=np.int32)
-       sem_label = label.reshape((-1)) & 0xFFFF # semantic label in lower half
-       return self.map_label(sem_label, learning_map) if learning_map is not None else sem_label, sem_label
-   
-   def get_semantic_label_2(self, idx, learning_map=None):
-       filename = self.velo_files[idx].replace('velodyne', 'labels').replace('.bin', '.label')
-       label = np.fromfile(filename, dtype=np.int32)
-       sem_label = label.reshape((-1)) & 0xFFFF # semantic label in lower half
-       return sem_label
-   
-   def get_instance_label(self, label_path, label_map=None):
-       label = np.fromfile(label_path, dtype=np.int32)
-       inst_label = label >> 16 # instance id in upper half
-       return inst_label
+    def get_semantic_label(self, idx, learning_map=None):
+        filename = self.velo_files[idx].replace('velodyne', 'labels').replace('.bin', '.label')
+        label = np.fromfile(filename, dtype=np.int32)
+        sem_label = label.reshape((-1)) & 0xFFFF # semantic label in lower half
+        return self.map_label(sem_label, learning_map) if learning_map is not None else sem_label, sem_label
 
-   def get_velo_pose(self, idx):
-       pose_ = np.matmul(self.poses[idx], self.calib.T_cam0_velo) # 从velo到cam0
-       Tr_inv = np.linalg.inv(self.calib.T_cam0_velo)
-       return np.matmul(Tr_inv, pose_)
-   
-   def get_aligned_center(self, idx, align_idx=0):
-       center = np.array([0,0,0,1]).T
-       pose = self.get_velo_pose(idx)
-       align_pose = self.poses[align_idx]
-       diff_pose = np.matmul(np.linalg.inv(align_pose), pose)
-       center = np.matmul(diff_pose, center.T).T
-       return center
+    def get_instance_label(self, idx, learning_map=None):
+        filename = self.velo_files[idx].replace('velodyne', 'labels').replace('.bin', '.label')
+        label = np.fromfile(filename, dtype=np.int32)
+        inst_label = label >> 16 # instance id in upper half
+        return inst_label
 
-   def get_aligned_velo(self, idx, align_idx=0): # 得到对齐的velo points
-       velo = self.get_velo(idx)
-       velo[:,3] = 1 # 反射率都设为1
-       pose = self.get_velo_pose(idx) # 得到第idx帧velo的pose
-       align_pose = self.poses[align_idx] # 默认为第0帧的基准位置
-       diff_pose = np.matmul(np.linalg.inv(align_pose), pose)
-       return np.matmul(diff_pose, velo.T).T
+    def get_velo_pose(self, idx):
+        pose_ = np.matmul(self.poses[idx], self.calib.T_cam0_velo) # 从velo到cam0
+        Tr_inv = np.linalg.inv(self.calib.T_cam0_velo)
+        return np.matmul(Tr_inv, pose_)
+
+    def get_aligned_center(self, idx, align_idx=0):
+        center = np.array([0,0,0,1]).T
+        pose = self.get_velo_pose(idx)
+        align_pose = self.poses[align_idx]
+        diff_pose = np.matmul(np.linalg.inv(align_pose), pose)
+        center = np.matmul(diff_pose, center.T).T
+        return center
+
+    def get_aligned_velo(self, idx, align_idx=0): # 得到对齐的velo points
+        velo = self.get_velo(idx)
+        velo[:,3] = 1 # 反射率都设为1
+        pose = self.get_velo_pose(idx) # 得到第idx帧velo的pose
+        align_pose = self.poses[align_idx] # 默认为第0帧的基准位置
+        diff_pose = np.matmul(np.linalg.inv(align_pose), pose)
+        return np.matmul(diff_pose, velo.T).T
+    
+    def get_total_velo_files_num(self):
+        return len(self.velo_files)
+    
+    def get_all_inst_id(self, all_sem_label, all_inst_label, labels_dict):
+        instances = {}
+        all_inst = list(set(all_inst_label))
+        for inst in all_inst:
+            inst_mask = np.where(all_inst_label == inst)
+            inst_mask = np.array(inst_mask).squeeze()
+            sem_label = all_sem_label[inst_mask]
+            if sem_label[0] != 0:
+                if labels_dict[sem_label[0]] in instances:
+                    instances[labels_dict[sem_label[0]]].append(inst)
+                else:
+                    instances[labels_dict[sem_label[0]]] = []
+                    instances[labels_dict[sem_label[0]]].append(inst)
+        return instances
+    
+    def get_all_car_inst_id(self, all_car_inst_label):
+        all_car_inst_id = list(set(all_car_inst_label));
+        return all_car_inst_id
 
 
 class Visualizer():
@@ -95,6 +112,6 @@ class Visualizer():
     def destroy(self):
         self.canvas.close()
         vispy.app.quit()
-    
+
     def run(self):
         vispy.app.run()

@@ -1,8 +1,7 @@
-import time
-
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
+import open3d as o3d
 from centerline.geometry import Centerline
 from polylidar import MatrixDouble, Polylidar3D
 from polylidar.polylidarutil import (apply_rotation,
@@ -16,9 +15,12 @@ from polylidar.polylidarutil import (apply_rotation,
                                      rotation_matrix, scale_points,
                                      set_axes_equal)
 from shapely.geometry import MultiPoint, Point
-import open3d as o3d
 
+from carlabel import (distance_mask, draw_box, filter_z, get_box_corners,
+                      height_filter, outlier_filter, rotate)
+from rectangle_fitting import rectangle_fitting
 
+null = np.array([])
 class AutoLabeler:
     def __init__(self, xyz, sem_mask, label_filter, distance=0.6):
         self.xyz = xyz
@@ -58,6 +60,8 @@ class AutoLabeler:
         geo_points = gpd.GeoSeries(MultiPoint(points)).explode(index_parts=True)
         mask = [point.covered_by(centre_poly) for point in geo_points]
         mask = np.array(mask).squeeze()
+        mask = np.where(mask == True)
+        mask = np.array(mask).squeeze()
         return mask
     
     def get_cluster(self, min_points=10):
@@ -94,3 +98,119 @@ class AutoLabeler:
 
         mask = np.array(mask).squeeze()
         return mask
+    
+    def get_car_label(self, single_car_xyz, ratio_min_z=0.2, ratio_max_z=1.0):
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(single_car_xyz)
+        
+        pcd = rotate(pcd, 30)
+        pcd_ = height_filter(pcd)
+        pcd_ = outlier_filter(pcd_)
+
+        theta = rectangle_fitting(pcd_)
+        # print(np.rad2deg(theta))
+        pcd = rotate(pcd, -np.rad2deg(theta))
+        
+        corners = get_box_corners(pcd)
+        pc = np.array(pcd.points)
+        
+        new_corners, new_pc, new_pc_mask = filter_z(corners, pc, ratio_min_z, ratio_max_z)
+        label_mask = distance_mask(new_corners, new_pc, new_pc_mask, distance_scope=self.padding)
+        # draw_box(pcd, corners, label_mask)
+        return label_mask
+        
+    def concat_labels_separation(self, frame_idx, points_num, label_mask):
+        total_points_num = 0;
+        sem_mask_per_frame = []
+        for i in range(frame_idx.shape[0]):
+            semi_separation_mask_1 = np.where(self.sem_mask >= total_points_num)
+            semi_separation_mask_1 = np.array(semi_separation_mask_1).squeeze()
+            if (isinstance(semi_separation_mask_1,int)):
+                semi_separation_mask_1 = np.array([semi_separation_mask_1])
+            elif (semi_separation_mask_1.shape[0] == 0):
+                sem_mask_per_frame.append(null)
+                continue;
+            semi_mask_1 = np.copy(self.sem_mask)
+            semi_mask_1 = semi_mask_1[semi_separation_mask_1]
+            
+            semi_separation_mask_2 = np.where(semi_mask_1 < total_points_num + points_num[i])
+            semi_separation_mask_2 = np.array(semi_separation_mask_2).squeeze()
+            if (isinstance(semi_separation_mask_2,int)):
+                semi_separation_mask_2 = np.array([semi_separation_mask_2])
+            elif (semi_separation_mask_2.shape[0] == 0):
+                sem_mask_per_frame.append(null)
+                continue;
+            semi_separation_mask_1 = semi_separation_mask_1[semi_separation_mask_2]
+            
+            separation_mask = np.copy(self.sem_mask)
+            separation_mask = separation_mask[semi_separation_mask_1]
+            
+            separation_mask -= total_points_num
+            sem_mask_per_frame.append(separation_mask)
+            
+            total_points_num += points_num[i]
+            
+        label_points_num = np.copy(points_num)
+        for i in range(label_points_num.shape[0]):
+            label_points_num[i] = sem_mask_per_frame[i].shape[0]
+            # print(label_points_num[i])
+            # print(sem_mask_per_frame[i])
+            
+        total_label_points_num = 0
+        label_mask_per_frame = []
+        for i in range(frame_idx.shape[0]):
+            if (label_points_num[i] == 0):
+                label_mask_per_frame.append(null)
+                continue;
+            
+            semi_separation_mask_1 = np.where(label_mask >= total_label_points_num)
+            semi_separation_mask_1 = np.array(semi_separation_mask_1).squeeze()
+            semi_mask_1 = np.copy(label_mask)
+            semi_mask_1 = semi_mask_1[semi_separation_mask_1]
+            
+            semi_separation_mask_2 = np.where(semi_mask_1 < total_label_points_num + label_points_num[i])
+            semi_separation_mask_2 = np.array(semi_separation_mask_2).squeeze()
+            semi_separation_mask_1 = semi_separation_mask_1[semi_separation_mask_2]
+            
+            separation_mask = np.copy(label_mask)
+            separation_mask = separation_mask[semi_separation_mask_1]
+            separation_mask -= total_label_points_num
+            
+            separation_mask = sem_mask_per_frame[i][separation_mask]
+            label_mask_per_frame.append(separation_mask)
+            
+            total_label_points_num += label_points_num[i]
+        
+        return label_mask_per_frame
+    
+    def concat_car_labels_separation(self, frame_idx, points_num, label_mask):
+        total_points_num = 0;
+        sem_mask_per_frame = []
+        for i in range(frame_idx.shape[0]):
+            semi_separation_mask_1 = np.where(label_mask >= total_points_num)
+            semi_separation_mask_1 = np.array(semi_separation_mask_1).squeeze()
+            if (isinstance(semi_separation_mask_1,int)):
+                semi_separation_mask_1 = np.array([semi_separation_mask_1])
+            elif (semi_separation_mask_1.shape[0] == 0):
+                sem_mask_per_frame.append(null)
+                continue;
+            semi_mask_1 = np.copy(label_mask)
+            semi_mask_1 = semi_mask_1[semi_separation_mask_1]
+            
+            semi_separation_mask_2 = np.where(semi_mask_1 < total_points_num + points_num[i])
+            semi_separation_mask_2 = np.array(semi_separation_mask_2).squeeze()
+            if (isinstance(semi_separation_mask_2,int)):
+                semi_separation_mask_2 = np.array([semi_separation_mask_2])
+            elif (semi_separation_mask_2.shape[0] == 0):
+                sem_mask_per_frame.append(null)
+                continue;
+            semi_separation_mask_1 = semi_separation_mask_1[semi_separation_mask_2]
+            
+            separation_mask = np.copy(label_mask)
+            separation_mask = separation_mask[semi_separation_mask_1]
+            
+            separation_mask -= total_points_num
+            sem_mask_per_frame.append(separation_mask)
+            
+            total_points_num += points_num[i]
+        return sem_mask_per_frame

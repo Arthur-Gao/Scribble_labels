@@ -44,6 +44,7 @@ def distance_mask(corners, pc, mask, distance_scope = 0.05):
     
     distance = point_distance_line(pc_xy,line_point1,line_point2)
     distance_mask = np.where(distance <= distance_scope)
+    distance_mask = np.array(distance_mask).squeeze()
     label_mask = np.copy(mask)
     label_mask = label_mask[distance_mask]
     return label_mask
