@@ -2,6 +2,7 @@ import numpy as np
 import vispy
 from pykitti import odometry
 from vispy.scene import SceneCanvas, visuals
+from scribble_mask import scribble_mask
 
 class SemanticKITTI(odometry):
     @staticmethod
@@ -24,7 +25,12 @@ class SemanticKITTI(odometry):
             except IndexError:
                 print("Wrong key ", key)
         return lut[label]
-
+    
+    def get_true_label(self, idx, learning_map=None):
+        filename = self.velo_files[idx].replace('velodyne', 'labels').replace('.bin', '.label')
+        true_label = np.fromfile(filename, dtype=np.int32)
+        return true_label
+    
     def get_semantic_label(self, idx, learning_map=None):
         filename = self.velo_files[idx].replace('velodyne', 'labels').replace('.bin', '.label')
         label = np.fromfile(filename, dtype=np.int32)
@@ -36,6 +42,10 @@ class SemanticKITTI(odometry):
         label = np.fromfile(filename, dtype=np.int32)
         inst_label = label >> 16 # instance id in upper half
         return inst_label
+    
+    def get_scribble_label_mask(self, idx, ds):
+        scribble_label_mask = scribble_mask(idx, ds)
+        return scribble_label_mask
 
     def get_velo_pose(self, idx):
         pose_ = np.matmul(self.poses[idx], self.calib.T_cam0_velo) # 从velo到cam0

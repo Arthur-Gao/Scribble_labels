@@ -7,19 +7,20 @@ import yaml
 from tqdm import tqdm
 
 from labeler import AutoLabeler
-from vis import SemanticKITTI, Visualizer
+from kitti import SemanticKITTI, Visualizer
 
 BASE_DIR = '/Users/chenguang.gao/Desktop/Dataset/kitti'
 SEQ = '00'
 
 label_color = np.array([0.0, 0.0, 0.0])
 
-is_getting_all_label = True
-is_visualizing = True
-only_show_single_frame = True
-show_car_all_frame = False
+IS_GETTING_ALL_LABEL = False
+IS_VISUALIZING = True
+ONLY_SHOW_SINGLE_FRAME = False
+SHOW_CAR_ALL_FRAMES = False
 
-class_can_label = [40, 44, 48, 50, 51, 70, 71, 80, 81, 10, 11, 13, 15, 18, 20]
+class_can_label = [40, 44, 48, 50, 51, 70, 71, 80, 81, 10, 11, 13, 15, 18, 20] # 15 classes
+class_distance = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.15, 0.1, 0.1, 0.2, 0.1, 0.2, 0.1, 0.2, 0.2]
 
 parser = argparse.ArgumentParser("./main.py")
 parser.add_argument(
@@ -39,7 +40,7 @@ parser.add_argument(
 parser.add_argument(
     '--startidx', '-idx',
     type=int,
-    default=0,
+    default=100,
     required=False,
     help='starting index from list. Defaults to %(default)s',
 )
@@ -80,6 +81,7 @@ if __name__ == '__main__':
     for i in tqdm(search_idx):
         xyz = ds.get_aligned_velo(i)[:,:3]
         color_label, sem_label = ds.get_semantic_label(i, config['learning_map'])
+        # print(sem_label.shape)
         ins_label = ds.get_instance_label(i)
         color = color_map[color_label.astype(np.int32)]/255
 
@@ -97,6 +99,7 @@ if __name__ == '__main__':
     all_color = np.concatenate(all_color)
     
     frame_idx = np.array(frame_idx)
+    print(frame_idx)
     points_num = np.array(points_num)
     
     '''
@@ -108,10 +111,11 @@ if __name__ == '__main__':
     all_inst_id = ds.get_all_inst_id(all_sem_label, all_inst_label, config['labels'])
     # print(all_inst_id)
     
-    if is_getting_all_label:
-        for label in class_can_label:
+    if IS_GETTING_ALL_LABEL:
+        for i, label in enumerate(class_can_label):
             FLAGS.type = label
-            print(FLAGS.type)
+            FLAGS.distance = class_distance[i]
+            print("**********" + "  " + config['labels'][FLAGS.type] + "  " + "**********")
             if FLAGS.type in [40, 44, 48, 50, 51, 70, 71, 80, 81]:
                 # get semantic mask and point that belong to the given type
                 sem_mask = np.where(all_sem_label == FLAGS.type)
@@ -172,7 +176,7 @@ if __name__ == '__main__':
                 # save car label indices each frame
                 assert len(all_separate_car_label) == len(frame_idx)
                 for i in frame_idx:
-                    pdprinter = pd.DataFrame(all_separate_car_label[i])
+                    pdprinter = pd.DataFrame(all_separate_car_label[i - first_idx])
                     pdprinter.to_csv("results/frame_%.0f.csv" % i, mode='a', header=False, index=None)
     else:
         if FLAGS.type in [40, 44, 48, 50, 51, 70, 71, 80, 81]:
@@ -228,11 +232,11 @@ if __name__ == '__main__':
             # save car label indices each frame
             assert len(all_separate_car_label) == len(frame_idx)
             for i in frame_idx:
-                pdprinter = pd.DataFrame(all_separate_car_label[i])
+                pdprinter = pd.DataFrame(all_separate_car_label[i - first_idx])
                 pdprinter.to_csv("results/frame_%.0f.csv" % i, mode='a', header=False, index=None)
     
     ## visualize label in frame 0
-    if only_show_single_frame:
+    if ONLY_SHOW_SINGLE_FRAME:
         label_0 = pd.read_csv("results/frame_0.csv", header=None)
         label_0 = label_0.values
         all_xyz = []
@@ -264,10 +268,10 @@ if __name__ == '__main__':
     else:
         all_xyz = np.copy(single_class_xyz)
         all_color = np.copy(single_class_color)
-        single_class_color[concat_label_mask] = label_color
+        all_color[concat_label_mask] = label_color
     
     ## visualize all concat car label in concat all frame points
-    if show_car_all_frame:
+    if SHOW_CAR_ALL_FRAMES:
         all_color[all_concat_car_label] = label_color
         no_show_mask_0 = np.where(all_sem_label == 0)
         no_show_mask_0 = np.asarray(no_show_mask_0)
@@ -279,7 +283,7 @@ if __name__ == '__main__':
         all_xyz = np.delete(all_xyz, no_show_mask, axis=0)
         all_color = np.delete(all_color, no_show_mask, axis=0)
     
-    if is_visualizing:
+    if IS_VISUALIZING:
         visualizer = Visualizer()
         visualizer.update(all_xyz, all_color)
         visualizer.run()

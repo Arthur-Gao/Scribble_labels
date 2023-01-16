@@ -66,9 +66,12 @@ class AutoLabeler:
         for i in range(frame_idx.shape[0]):
             semi_separation_mask_1 = np.where(self.sem_mask >= total_points_num)
             semi_separation_mask_1 = np.array(semi_separation_mask_1).squeeze()
-            if (isinstance(semi_separation_mask_1,int)):
-                semi_separation_mask_1 = np.array([semi_separation_mask_1])
-            elif (semi_separation_mask_1.shape[0] == 0):
+            semi_separation_mask_1 = semi_separation_mask_1.flatten()
+            # if (semi_separation_mask_1.shape[1] == 1):
+            #     semi_separation_mask_1 = semi_separation_mask_1[0]
+            # else:
+            #     semi_separation_mask_1 = np.squeeze(semi_separation_mask_1)
+            if (semi_separation_mask_1.shape[0] == 0):
                 sem_mask_per_frame.append(null)
                 continue;
             semi_mask_1 = np.copy(self.sem_mask)
@@ -76,9 +79,18 @@ class AutoLabeler:
             
             semi_separation_mask_2 = np.where(semi_mask_1 < total_points_num + points_num[i])
             semi_separation_mask_2 = np.array(semi_separation_mask_2).squeeze()
-            if (isinstance(semi_separation_mask_2,int)):
-                semi_separation_mask_2 = np.array([semi_separation_mask_2])
-            elif (semi_separation_mask_2.shape[0] == 0):
+            semi_separation_mask_2 = semi_separation_mask_2.flatten()
+            # if (semi_separation_mask_2.shape[1] == 1):
+            #     semi_separation_mask_2 = semi_separation_mask_2[0]
+            # else:
+            #     semi_separation_mask_2 = np.squeeze(semi_separation_mask_2)
+            
+            # if (isinstance(semi_separation_mask_2, int)):
+            #     semi_separation_mask_2 = np.array([semi_separation_mask_2])
+            # elif (semi_separation_mask_2.shape[0] == 0):
+            #     sem_mask_per_frame.append(null)
+            #     continue;
+            if (semi_separation_mask_2.shape[0] == 0):
                 sem_mask_per_frame.append(null)
                 continue;
             semi_separation_mask_1 = semi_separation_mask_1[semi_separation_mask_2]
@@ -104,11 +116,13 @@ class AutoLabeler:
             
             semi_separation_mask_1 = np.where(label_mask >= total_label_points_num)
             semi_separation_mask_1 = np.array(semi_separation_mask_1).squeeze()
+            semi_separation_mask_1 = semi_separation_mask_1.flatten()
             semi_mask_1 = np.copy(label_mask)
             semi_mask_1 = semi_mask_1[semi_separation_mask_1]
             
             semi_separation_mask_2 = np.where(semi_mask_1 < total_label_points_num + label_points_num[i])
             semi_separation_mask_2 = np.array(semi_separation_mask_2).squeeze()
+            semi_separation_mask_2 = semi_separation_mask_2.flatten()
             semi_separation_mask_1 = semi_separation_mask_1[semi_separation_mask_2]
             
             separation_mask = np.copy(label_mask)
@@ -128,9 +142,8 @@ class AutoLabeler:
         for i in range(frame_idx.shape[0]):
             semi_separation_mask_1 = np.where(label_mask >= total_points_num)
             semi_separation_mask_1 = np.array(semi_separation_mask_1).squeeze()
-            if (isinstance(semi_separation_mask_1,int)):
-                semi_separation_mask_1 = np.array([semi_separation_mask_1])
-            elif (semi_separation_mask_1.shape[0] == 0):
+            semi_separation_mask_1 = semi_separation_mask_1.flatten()
+            if (semi_separation_mask_1.shape[0] == 0):
                 sem_mask_per_frame.append(null)
                 continue;
             semi_mask_1 = np.copy(label_mask)
@@ -138,9 +151,8 @@ class AutoLabeler:
             
             semi_separation_mask_2 = np.where(semi_mask_1 < total_points_num + points_num[i])
             semi_separation_mask_2 = np.array(semi_separation_mask_2).squeeze()
-            if (isinstance(semi_separation_mask_2,int)):
-                semi_separation_mask_2 = np.array([semi_separation_mask_2])
-            elif (semi_separation_mask_2.shape[0] == 0):
+            semi_separation_mask_2 = semi_separation_mask_2.flatten()
+            if (semi_separation_mask_2.shape[0] == 0):
                 sem_mask_per_frame.append(null)
                 continue;
             semi_separation_mask_1 = semi_separation_mask_1[semi_separation_mask_2]

@@ -7,9 +7,9 @@ class need label:
     50: building / 51: fence
     70: vegetation / 81: traffic-sign
     71: trunk / 80: pole
+    30: person / 31: bicyclist / 32: motorcyclist
     Above classes have already done. 
 
-    30: person / 31: bicyclist / 32: motorcyclist
     72: terrain
     49: other_ground
     Above classed have not been finished.
@@ -27,7 +27,7 @@ from shapely.geometry import MultiPoint
 
 def get_centreline(polygon):
     attributes = {"id": 1, "name": "polygon", "valid": True}
-    centerline = Centerline(polygon, interpolation_distance=0.2, **attributes)
+    centerline = Centerline(polygon, interpolation_distance=0.1, **attributes)
     
     return centerline
 
