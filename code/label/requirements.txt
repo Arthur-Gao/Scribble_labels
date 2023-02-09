@@ -1,0 +1,7 @@
+geopandas==0.12.1
+numpy==1.21.2
+open3d==0.15.1
+centerline==0.6.4
+polylidar==1.0.8
+shapely==1.8.2
+pandas==1.4.1
