@@ -13,6 +13,8 @@ class need label:
     72: terrain
     49: other_ground
     Above classed have not been finished.
+    class_can_label = [40, 44, 48, 50, 51, 70, 71, 80, 81, 10, 11, 13, 15, 18, 20, 30, 31, 32]
+    class_distance = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.15, 0.1, 0.1, 0.2, 0.1, 0.2, 0.1, 0.2, 0.2, 0.1, 0.1, 0.1]
 """
 
 import geopandas as gpd
@@ -265,7 +267,7 @@ class buildingLabeler:
             eight_points = np.tile(bbox.center, (8, 1))
 
             corner_box = np.dot(
-                bbox.R, bounding_box) + eight_points.transpose()
+                bbox.R, bounding_box) + eight_points.transpose() # box平移
             corner_box = corner_box.transpose()
 
             lines = [[0, 1], [1, 2], [2, 3], [0, 3],

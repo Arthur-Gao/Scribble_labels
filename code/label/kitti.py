@@ -87,7 +87,7 @@ class SemanticKITTI(odometry):
         return instances
     
     def get_all_car_inst_id(self, all_car_inst_label):
-        all_car_inst_id = list(set(all_car_inst_label));
+        all_car_inst_id = list(set(all_car_inst_label))
         return all_car_inst_id
 
 
