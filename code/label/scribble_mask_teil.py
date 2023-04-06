@@ -9,10 +9,10 @@ from tqdm import tqdm
 from labeler import AutoLabeler
 
 BASE_DIR = '/Users/chenguang.gao/Desktop/Dataset/kitti'
-SEQ = '04'
+SEQ = '10'
 
 def get_scribble_mask_by_teil(all_xyz, all_sem_label, all_inst_label):
-    class_can_label = [40, 44, 48, 50, 51, 70, 71, 80, 81, 10, 11, 13, 15, 18, 20, 30, 31, 32] # 15 classes
+    class_can_label = [40, 44, 48, 50, 51, 70, 71, 80, 81, 10, 11, 13, 15, 18, 20, 30, 31, 32] # 18 classes
     class_distance = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.15, 0.1, 0.1, 0.2, 0.1, 0.2, 0.1, 0.2, 0.2, 0.1, 0.1, 0.1]
     
     parser = argparse.ArgumentParser()
@@ -48,6 +48,13 @@ def get_scribble_mask_by_teil(all_xyz, all_sem_label, all_inst_label):
 
             single_class_xyz = all_xyz[sem_mask]
             print(single_class_xyz.shape[0])
+            
+            # if (FLAGS.type == 48 & single_class_xyz.shape[0] >= 50000):
+            #     continue
+            
+            # if (FLAGS.type != 70):
+            #     continue
+            
             if (single_class_xyz.shape[0] < 10):
                 continue
             
@@ -56,6 +63,8 @@ def get_scribble_mask_by_teil(all_xyz, all_sem_label, all_inst_label):
             concat_label_mask = autolabeler.labeler()
             print(concat_label_mask)
             # get concat label according to teil
+            if (concat_label_mask.shape[0] == 0):
+                continue
             concat_label_mask_wrt_teil = sem_mask[concat_label_mask]
             print(concat_label_mask_wrt_teil)
             concat_label_mask_wrt_teil = concat_label_mask_wrt_teil.flatten()
@@ -66,6 +75,7 @@ def get_scribble_mask_by_teil(all_xyz, all_sem_label, all_inst_label):
             all_concat_car_label = []
             sem_mask = np.where(all_sem_label == FLAGS.type)
             sem_mask = np.array(sem_mask).squeeze()
+            sem_mask = sem_mask.flatten()
             all_car_inst_label = all_inst_label[sem_mask]
             
             if (all_car_inst_label.shape[0] < 100):
@@ -77,6 +87,7 @@ def get_scribble_mask_by_teil(all_xyz, all_sem_label, all_inst_label):
             for car in all_car_inst_id:
                 single_car_inst_mask = np.where(all_car_inst_label == car)
                 single_car_inst_mask = np.array(single_car_inst_mask).squeeze()
+                single_car_inst_mask = single_car_inst_mask.flatten()
                 
                 single_car_sem_mask = sem_mask[single_car_inst_mask]
                 single_car_xyz = all_xyz[single_car_sem_mask]

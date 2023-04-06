@@ -12,20 +12,43 @@ from kitti import SemanticKITTI
 from scribble_mask_teil import get_scribble_mask_by_teil
 
 BASE_DIR = '/Users/chenguang.gao/Desktop/Dataset/kitti'
-SEQ = '04'
+SEQ = '10'
 save_name = 'scribbles'
 
 scribble_label_per_frame = []
 
-def concat_labels_separation(self, frame_idx, points_num, label_mask, files_num):
-    total_points_num = 0
-    for i in range(files_num):
-        frame_mask = np.where((label_mask >= total_points_num) & (label_mask < total_points_num + points_num[i]))
-        frame_mask = np.asarray(frame_mask).squeeze()
-        frame_mask = frame_mask.flatten()
+# def concat_labels_separation(points_num, label_mask, files_num):
+#     total_points_num = 0
+#     for i in range(files_num):
+#         frame_mask = np.where((label_mask >= total_points_num) & (label_mask < total_points_num + points_num[i]))
+#         frame_mask = np.asarray(frame_mask).squeeze()
+#         frame_mask = frame_mask.flatten()
         
-        frame_mask -= total_points_num
-        scribble_label_per_frame[i].append(frame_mask)
+#         # frame_mask -= total_points_num
+#         scribble_label_per_frame[i].append(frame_mask)
+        
+#         total_points_num += points_num[i]
+
+
+def concat_labels_separation(points_num, label_mask, files_num):
+    total_points_num = 0;
+    for i in range(files_num):
+        semi_separation_mask_1 = np.where(label_mask >= total_points_num)
+        semi_separation_mask_1 = np.array(semi_separation_mask_1).squeeze()
+        semi_separation_mask_1 = semi_separation_mask_1.flatten()
+        semi_mask_1 = np.copy(label_mask)
+        semi_mask_1 = semi_mask_1[semi_separation_mask_1]
+        
+        semi_separation_mask_2 = np.where(semi_mask_1 < total_points_num + points_num[i])
+        semi_separation_mask_2 = np.array(semi_separation_mask_2).squeeze()
+        semi_separation_mask_2 = semi_separation_mask_2.flatten()
+        semi_separation_mask_1 = semi_separation_mask_1[semi_separation_mask_2]
+        
+        separation_mask = np.copy(label_mask)
+        separation_mask = separation_mask[semi_separation_mask_1]
+        
+        separation_mask -= total_points_num
+        scribble_label_per_frame[i].append(separation_mask)
         
         total_points_num += points_num[i]
 
@@ -67,13 +90,13 @@ if __name__=='__main__':
     all_xyz = np.concatenate(all_xyz)
     all_sem_label = np.concatenate(all_sem_label)
     all_inst_label = np.concatenate(all_inst_label)
-    
+
     min_x = np.min(all_xyz[:,0])
     max_x = np.max(all_xyz[:,0])
     min_y = np.min(all_xyz[:,1])
     max_y = np.max(all_xyz[:,1])
     
-    teil_scope = 50.0
+    teil_scope = 100.0
     
     teil_num_x = np.ceil((max_x - min_x) / teil_scope)
     teil_num_x = int(teil_num_x)
@@ -83,14 +106,22 @@ if __name__=='__main__':
     print(teil_num_y)
     
     all_teil_concat_scribble_mask = []
+    all_teil_concat_scribble_mask_save = np.array([], dtype=np.int32)
     
-    for i in range(teil_num_x):
+    for i in range(0, teil_num_x):
         teil_min_x = min_x + i * teil_scope
         teil_max_x = min_x + (i + 1) * teil_scope
         if (max_x < teil_max_x):
             teil_max_x = max_x
-        print("------x")
         for j in range(teil_num_y):
+            print("                                                                      ")
+            print("                                                                      ")
+            print("**********************************************************************")
+            print("这是第 %0.f / %0.f 个teil" % (i * teil_num_y + j + 1, teil_num_x * teil_num_y))
+            
+            # if (i * teil_num_y + j + 1 <= 6):
+            #     continue
+            
             teil_min_y = min_y + j * teil_scope
             teil_max_y = min_y + (j + 1) * teil_scope
             if (max_y < teil_max_y):
@@ -100,9 +131,10 @@ if __name__=='__main__':
                                  (all_xyz[:,1] >= teil_min_y) & (all_xyz[:,1] < teil_max_y))
             teil_mask = np.asarray(teil_mask)[0]
             # print(teil_mask)
-            print(teil_mask.shape)
+            print("这个teil一共有 %0.f 个点" % (teil_mask.shape[0]))
             
             if (teil_mask.shape[0] <= 100):
+                print("这个teil一共筛选出 0 个点")
                 continue;
             
             teil_xyz = all_xyz[teil_mask]
@@ -111,17 +143,39 @@ if __name__=='__main__':
             
             teil_concat_scribble_mask = get_scribble_mask_by_teil(teil_xyz, teil_sem_label, teil_inst_label)
             if (teil_concat_scribble_mask.shape[0] == 0):
-                print("----y")
+                print("没有 LABEL")
+                print("这个teil一共筛选出 0 个点")
                 continue
             teil_concat_scribble_mask = teil_mask[teil_concat_scribble_mask]
+            print("有 LABEL")
+            print("这个teil一共筛选出 %0.f 个点" % (teil_concat_scribble_mask.shape[0]))
             
             all_teil_concat_scribble_mask.append(teil_concat_scribble_mask)
-            print("++++y")
+            
+            all_teil_concat_scribble_mask_save = np.append(all_teil_concat_scribble_mask_save, teil_concat_scribble_mask)
+            print("目前一共筛选出 %0.f 个点" % (all_teil_concat_scribble_mask_save.shape[0]))
+            np.save('mask.npy', all_teil_concat_scribble_mask_save)
+            
+            print("**********************************************************************")
+            print("                                                                      ")
+            print("                                                                      ")
             
     all_teil_concat_scribble_mask = np.concatenate(all_teil_concat_scribble_mask)
+    all_teil_concat_scribble_mask = np.unique(all_teil_concat_scribble_mask)
     all_teil_concat_scribble_mask = np.sort(all_teil_concat_scribble_mask)
     
-    concat_labels_separation(frame_idx, points_num, all_teil_concat_scribble_mask, files_num)
+    # all_teil_concat_scribble_mask = np.array([], dtype=np.int32)
+    # a = np.load("/Users/chenguang.gao/Desktop/mask_1_6.npy")
+    # all_teil_concat_scribble_mask = np.append(all_teil_concat_scribble_mask, a)
+    # a = np.load("/Users/chenguang.gao/Desktop/mask.npy")
+    # all_teil_concat_scribble_mask = np.append(all_teil_concat_scribble_mask, a)
+    
+    # print(all_teil_concat_scribble_mask.shape)
+    # all_teil_concat_scribble_mask = np.unique(all_teil_concat_scribble_mask)
+    # print(all_teil_concat_scribble_mask.shape)
+    # all_teil_concat_scribble_mask = np.sort(all_teil_concat_scribble_mask)
+    
+    concat_labels_separation(points_num, all_teil_concat_scribble_mask, files_num)
     
     for i in tqdm(range(files_num)):
         # pdb.set_trace()
@@ -137,7 +191,11 @@ if __name__=='__main__':
         
         scribble_label_mask = np.concatenate(scribble_label_per_frame[i])
         no_scribble_label_mask = np.array([k for k in range(point_num)])
+        print(scribble_label_mask)
+        print(scribble_label_mask.shape[0])
         no_scribble_label_mask = np.delete(no_scribble_label_mask, scribble_label_mask)
+        print(no_scribble_label_mask)
+        print(no_scribble_label_mask.shape[0])
         scribble_label = np.copy(true_label)
         scribble_label[no_scribble_label_mask] = 0
         

@@ -19,8 +19,10 @@ class AutoLabeler:
      
     def labeler(self):
         if self.label == 40: # road
-            roadlabeler = roadLabeler(self.xyz, self.sem_mask, self.label, self.padding)
-            mask = roadlabeler.get_road_label()
+            # roadlabeler = roadLabeler(self.xyz, self.sem_mask, self.label, self.padding)
+            # mask = roadlabeler.get_road_label()
+            roadlabeler = sidewalkLabeler(self.xyz, self.sem_mask, self.label, self.padding)
+            mask = roadlabeler.get_sidewalk_label()
         elif self.label == 44: # parking
             parkinglabeler = parkingLabeler(self.xyz, self.sem_mask, self.label, self.padding)
             mask = parkinglabeler.get_parking_label()
@@ -50,6 +52,10 @@ class AutoLabeler:
         pcd_ = outlier_filter(pcd_)
 
         theta = rectangle_fitting(pcd_)
+        
+        if (theta == None):
+            return np.asarray([])
+        
         pcd = rotate(pcd, -np.rad2deg(theta))
         
         corners = get_box_corners(pcd)

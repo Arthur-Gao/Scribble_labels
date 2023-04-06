@@ -48,11 +48,11 @@ def draw_box(pcd, corners, label_mask):
     )
     line_set.colors = o3d.utility.Vector3dVector(COLORS)
     
-    pcd.paint_uniform_color([0, 0, 0])
+    pcd.paint_uniform_color([0.827, 0.827, 0.827])
     pc_color = np.array(pcd.colors)
-    label_color = np.array([1, 0, 0])
-    for i in label_mask:
-        pc_color[i] = label_color
+    # label_color = np.array([1, 0, 0])
+    # for i in label_mask:
+    #     pc_color[i] = label_color
     pcd.colors = o3d.utility.Vector3dVector(pc_color)
     
     o3d.visualization.draw_geometries([pcd, line_set])

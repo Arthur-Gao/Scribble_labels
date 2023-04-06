@@ -139,7 +139,14 @@ def rectangle_fitting(pcd, num_bins=100, d0=1e-3):
     best_theta = None
     for theta in thetas:
         c1, c2 = project_to_unit(theta, x)
-        value = closeness_criterion(c1, c2, d0)
+        
+        try:
+            value = closeness_criterion(c1, c2, d0)
+        except Exception as e:
+            print(e)
+            return None
+        
+        
         if value > max_value:
             max_value = value
             best_theta = theta

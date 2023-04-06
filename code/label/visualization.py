@@ -12,7 +12,7 @@ from kitti import SemanticKITTI, Visualizer
 BASE_DIR = '/Users/chenguang.gao/Desktop/Dataset/kitti'
 SEQ = '00'
 
-label_color = np.array([0.0, 0.0, 0.0])
+label_color = np.array([0.827, 0.827, 0.827])
 
 IS_GETTING_ALL_LABEL = False
 IS_VISUALIZING = True
@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser("./main.py")
 parser.add_argument(
     '--type', '-t',
     type=int,
-    default=10,
+    default=48,
     required=False,
     help='Labels. Defaults to %(default)s',
 )
@@ -40,7 +40,7 @@ parser.add_argument(
 parser.add_argument(
     '--startidx', '-idx',
     type=int,
-    default=100,
+    default=0,
     required=False,
     help='starting index from list. Defaults to %(default)s',
 )
@@ -254,21 +254,39 @@ if __name__ == '__main__':
         all_xyz = np.concatenate(all_xyz)
         all_sem_label = np.concatenate(all_sem_label)
         all_color = np.concatenate(all_color)
-        all_color[label_0] = label_color
+        # all_color[label_0] = label_color
+        
+        point_num = all_color.shape[0]
+        no_color = np.array([k for k in range(point_num)])
+        no_color = np.delete(no_color, label_0)
+        all_color[no_color] = label_color
+        
         # no show points with label == 0 | label == 1
-        no_show_mask_0 = np.where(all_sem_label == 0)
-        no_show_mask_0 = np.asarray(no_show_mask_0)
-        no_show_mask_0 = no_show_mask_0[0]
-        no_show_mask_1 = np.where(all_sem_label == 1)
-        no_show_mask_1 = np.asarray(no_show_mask_1)
-        no_show_mask_1 = no_show_mask_1[0]
-        no_show_mask = np.concatenate([no_show_mask_0, no_show_mask_1])
-        all_xyz = np.delete(all_xyz, no_show_mask, axis=0)
-        all_color = np.delete(all_color, no_show_mask, axis=0)
+        # no_show_mask_0 = np.where(all_sem_label == 0)
+        # no_show_mask_0 = np.asarray(no_show_mask_0)
+        # no_show_mask_0 = no_show_mask_0[0]
+        # no_show_mask_1 = np.where(all_sem_label == 1)
+        # no_show_mask_1 = np.asarray(no_show_mask_1)
+        # no_show_mask_1 = no_show_mask_1[0]
+        # no_show_mask = np.concatenate([no_show_mask_0, no_show_mask_1])
+        # all_xyz = np.delete(all_xyz, no_show_mask, axis=0)
+        # all_color = np.delete(all_color, no_show_mask, axis=0)
+        
+        sem_mask = np.where(all_sem_label == 40)
+        sem_mask = np.asarray(sem_mask)
+        sem_mask = sem_mask[0]
+        all_xyz = all_xyz[sem_mask]
+        all_color = all_xyz[sem_mask]
     else:
         all_xyz = np.copy(single_class_xyz)
         all_color = np.copy(single_class_color)
-        all_color[concat_label_mask] = label_color
+        
+        point_num = all_color.shape[0]
+        no_color = np.array([k for k in range(point_num)])
+        no_color = np.delete(no_color, concat_label_mask)
+        all_color[no_color] = label_color
+        
+        # all_color[concat_label_mask] = label_color
     
     ## visualize all concat car label in concat all frame points
     if SHOW_CAR_ALL_FRAMES:
